@@ -107,8 +107,8 @@
     /* Key Selection Intermediary Screen */
     .selector-header {
       display: flex;
-      justify-content: space-between;
-      align-items: center;
+      flex-direction: column;
+      gap: 8px;
       margin-top: 4px;
     }
 
@@ -120,18 +120,19 @@
 
     .selector-links {
       display: flex;
-      gap: 8px;
+      flex-wrap: wrap;
+      gap: 6px 10px;
     }
 
     .btn-text {
       background: none;
       border: none;
       color: var(--accent);
-      font-size: 0.75rem;
+      font-size: 0.78rem;
       font-weight: 600;
       cursor: pointer;
       text-decoration: underline;
-      padding: 2px 4px;
+      padding: 2px 2px;
     }
 
     .keys-checkbox-grid {
@@ -398,6 +399,8 @@
         <span class="selector-title">Select Keys to Include:</span>
         <div class="selector-links">
           <button class="btn-text" id="btn-select-all">All</button>
+          <button class="btn-text" id="btn-select-naturals">Only Naturals</button>
+          <button class="btn-text" id="btn-select-sharps-flats">Only Sharps/Flats</button>
           <button class="btn-text" id="btn-select-none">Clear</button>
         </div>
       </div>
@@ -424,11 +427,9 @@
 
       <div class="audio-control-area">
         <button class="btn-audio-toggle" id="btn-audio-toggle" aria-label="Play / Pause Audio">
-          <!-- Play Icon -->
           <svg id="icon-play" viewBox="0 0 24 24">
             <path d="M8 5v14l11-7z"/>
           </svg>
-          <!-- Pause Icon -->
           <svg id="icon-pause" viewBox="0 0 24 24" style="display: none;">
             <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
           </svg>
@@ -458,18 +459,18 @@
 
   <script>
     const ALL_KEYS = [
-      { id: "c",      name: "C Major",        file: "cmajor.mp3" },
-      { id: "csharp", name: "C#/Db Major",    file: "csharpmajor.mp3" },
-      { id: "d",      name: "D Major",        file: "dmajor.mp3" },
-      { id: "dsharp", name: "D#/Eb Major",    file: "dsharpmajor.mp3" },
-      { id: "e",      name: "E Major",        file: "emajor.mp3" },
-      { id: "f",      name: "F Major",        file: "fmajor.mp3" },
-      { id: "fsharp", name: "F#/Gb Major",    file: "fsharpmajor.mp3" },
-      { id: "g",      name: "G Major",        file: "gmajor.mp3" },
-      { id: "gsharp", name: "G#/Ab Major",    file: "gsharpmajor.mp3" },
-      { id: "a",      name: "A Major",        file: "amajor.mp3" },
-      { id: "asharp", name: "A#/Bb Major",    file: "asharpmajor.mp3" },
-      { id: "b",      name: "B Major",        file: "bmajor.mp3" }
+      { id: "c",      name: "C Major",        file: "cmajor.mp3",      isAccidental: false },
+      { id: "csharp", name: "C#/Db Major",    file: "csharpmajor.mp3", isAccidental: true },
+      { id: "d",      name: "D Major",        file: "dmajor.mp3",      isAccidental: false },
+      { id: "dsharp", name: "D#/Eb Major",    file: "dsharpmajor.mp3", isAccidental: true },
+      { id: "e",      name: "E Major",        file: "emajor.mp3",      isAccidental: false },
+      { id: "f",      name: "F Major",        file: "fmajor.mp3",      isAccidental: false },
+      { id: "fsharp", name: "F#/Gb Major",    file: "fsharpmajor.mp3", isAccidental: true },
+      { id: "g",      name: "G Major",        file: "gmajor.mp3",      isAccidental: false },
+      { id: "gsharp", name: "G#/Ab Major",    file: "gsharpmajor.mp3", isAccidental: true },
+      { id: "a",      name: "A Major",        file: "amajor.mp3",      isAccidental: false },
+      { id: "asharp", name: "A#/Bb Major",    file: "asharpmajor.mp3", isAccidental: true },
+      { id: "b",      name: "B Major",        file: "bmajor.mp3",      isAccidental: false }
     ];
 
     const TOTAL_ROUNDS = 10;
@@ -509,8 +510,12 @@
     const btnBackToIntro = document.getElementById('btn-back-to-intro');
     const btnStartGame = document.getElementById('btn-start-game');
     const btnRestart = document.getElementById('btn-restart');
+    
     const btnSelectAll = document.getElementById('btn-select-all');
+    const btnSelectNaturals = document.getElementById('btn-select-naturals');
+    const btnSelectSharpsFlats = document.getElementById('btn-select-sharps-flats');
     const btnSelectNone = document.getElementById('btn-select-none');
+    
     const keysSelectorGrid = document.getElementById('keys-selector-grid');
     const selectionWarning = document.getElementById('selection-warning');
 
@@ -535,13 +540,14 @@
       targetScreen.classList.add('active');
     }
 
-    // Key selection builder
+    // Key selection grid builder
     function initSelectionGrid() {
       keysSelectorGrid.innerHTML = '';
       ALL_KEYS.forEach(key => {
         const toggleBtn = document.createElement('div');
         toggleBtn.className = `key-toggle ${selectedKeyIds.has(key.id) ? 'selected' : ''}`;
         toggleBtn.textContent = key.name;
+        toggleBtn.dataset.keyId = key.id;
         toggleBtn.addEventListener('click', () => {
           if (selectedKeyIds.has(key.id)) {
             selectedKeyIds.delete(key.id);
@@ -553,6 +559,14 @@
           validateKeySelection();
         });
         keysSelectorGrid.appendChild(toggleBtn);
+      });
+      validateKeySelection();
+    }
+
+    function syncGridVisuals() {
+      const toggleButtons = keysSelectorGrid.querySelectorAll('.key-toggle');
+      toggleButtons.forEach(btn => {
+        btn.classList.toggle('selected', selectedKeyIds.has(btn.dataset.keyId));
       });
       validateKeySelection();
     }
@@ -570,14 +584,22 @@
 
     btnSelectAll.addEventListener('click', () => {
       selectedKeyIds = new Set(ALL_KEYS.map(k => k.id));
-      document.querySelectorAll('.key-toggle').forEach(el => el.classList.add('selected'));
-      validateKeySelection();
+      syncGridVisuals();
+    });
+
+    btnSelectNaturals.addEventListener('click', () => {
+      selectedKeyIds = new Set(ALL_KEYS.filter(k => !k.isAccidental).map(k => k.id));
+      syncGridVisuals();
+    });
+
+    btnSelectSharpsFlats.addEventListener('click', () => {
+      selectedKeyIds = new Set(ALL_KEYS.filter(k => k.isAccidental).map(k => k.id));
+      syncGridVisuals();
     });
 
     btnSelectNone.addEventListener('click', () => {
       selectedKeyIds.clear();
-      document.querySelectorAll('.key-toggle').forEach(el => el.classList.remove('selected'));
-      validateKeySelection();
+      syncGridVisuals();
     });
 
     // Build gameplay buttons from the selected keys pool
@@ -619,13 +641,11 @@
     }
 
     function toggleAudioPlayback() {
-      // User tapped play; stop pulse animation
       btnAudioToggle.classList.remove('pulse');
 
       if (!currentAudio) return;
 
       if (currentAudio.paused) {
-        // Stop SFX if still sounding
         correctAudio.pause();
         correctAudio.currentTime = 0;
         incorrectAudio.pause();
@@ -653,8 +673,6 @@
       selectedKeyId = null;
 
       stopAllAudio();
-
-      // Trigger pulse animation to cue the player
       btnAudioToggle.classList.add('pulse');
 
       feedbackBanner.textContent = '';
@@ -672,7 +690,6 @@
         btn.disabled = false;
       });
 
-      // Select random key from chosen active pool
       const randomIndex = Math.floor(Math.random() * activeKeys.length);
       currentTargetKey = activeKeys[randomIndex];
       currentAudio = audioPool[currentTargetKey.id];
@@ -694,7 +711,6 @@
     function handleSubmitAnswer() {
       if (!selectedKeyId || isRoundSubmitted) return;
 
-      // Stop excerpt audio immediately on submission
       stopAllAudio();
       btnAudioToggle.classList.remove('pulse');
 
@@ -785,7 +801,6 @@
 
     btnStartGame.addEventListener('click', startGame);
 
-    // Loop back to the Game Intro Screen as requested
     btnRestart.addEventListener('click', () => {
       switchScreen(screenStart);
     });
