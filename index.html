@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Key Recognition Trainer</title>
+  
+  <style>
+    :root {
+      --bg-color: #0f172a;
+      --card-bg: #1e293b;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --accent: #38bdf8;
+      --accent-active: #0284c7;
+      --correct: #22c55e;
+      --incorrect: #ef4444;
+      --selected: #6366f1;
+      --border-radius: 16px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 16px;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 440px;
+      background: var(--card-bg);
+      border-radius: var(--border-radius);
+      padding: 24px;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5);
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    header {
+      text-align: center;
+    }
+
+    header h1 {
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: var(--text-main);
+      letter-spacing: -0.5px;
+    }
+
+    header p {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    .screen {
+      display: none;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .screen.active {
+      display: flex;
+    }
+
+    /* Start Screen */
+    .start-card {
+      text-align: left;
+      padding: 8px 0;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .start-card p {
+      color: var(--text-muted);
+      font-size: 0.92rem;
+      line-height: 1.5;
+    }
+
+    .callout-hint {
+      background: rgba(15, 23, 42, 0.5);
+      border-left: 3px solid var(--accent);
+      padding: 12px;
+      border-radius: 0 10px 10px 0;
+    }
+
+    .callout-hint strong {
+      color: var(--accent);
+      font-weight: 700;
+    }
+
+    /* Key Selection Intermediary Screen */
+    .selector-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 4px;
+    }
+
+    .selector-title {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--text-main);
+    }
+
+    .selector-links {
+      display: flex;
+      gap: 8px;
+    }
+
+    .btn-text {
+      background: none;
+      border: none;
+      color: var(--accent);
+      font-size: 0.75rem;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: underline;
+      padding: 2px 4px;
+    }
+
+    .keys-checkbox-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+      max-height: 290px;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+
+    .key-toggle {
+      background: #334155;
+      border: 1px solid #475569;
+      border-radius: 10px;
+      padding: 11px 8px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-align: center;
+      cursor: pointer;
+      transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+    }
+
+    .key-toggle.selected {
+      background: rgba(99, 102, 241, 0.2);
+      border-color: var(--selected);
+      color: #c7d2fe;
+    }
+
+    .selection-warning {
+      color: var(--incorrect);
+      font-size: 0.8rem;
+      text-align: center;
+      min-height: 18px;
+    }
+
+    /* Game HUD */
+    .hud {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(15, 23, 42, 0.6);
+      padding: 10px 16px;
+      border-radius: 12px;
+      font-size: 0.9rem;
+      font-weight: 600;
+    }
+
+    .hud-label {
+      color: var(--text-muted);
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 2px;
+    }
+
+    .hud-val {
+      color: var(--accent);
+      font-size: 1.1rem;
+    }
+
+    /* Audio Playback Controls & Pulse Animation */
+    .audio-control-area {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 6px 0;
+    }
+
+    @keyframes pulse-glow {
+      0% {
+        box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.7);
+        transform: scale(1);
+      }
+      50% {
+        box-shadow: 0 0 24px 8px rgba(56, 189, 248, 0.9);
+        transform: scale(1.06);
+      }
+      100% {
+        box-shadow: 0 0 0 0 rgba(56, 189, 248, 0);
+        transform: scale(1);
+      }
+    }
+
+    .btn-audio-toggle {
+      width: 72px;
+      height: 72px;
+      border-radius: 50%;
+      background: var(--accent);
+      border: none;
+      color: #0f172a;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      cursor: pointer;
+      box-shadow: 0 0 20px rgba(56, 189, 248, 0.35);
+      transition: transform 0.15s ease, background-color 0.15s ease;
+    }
+
+    .btn-audio-toggle.pulse {
+      animation: pulse-glow 1.8s infinite ease-in-out;
+    }
+
+    .btn-audio-toggle:active {
+      transform: scale(0.92);
+      background: var(--accent-active);
+    }
+
+    .btn-audio-toggle svg {
+      width: 32px;
+      height: 32px;
+      fill: currentColor;
+    }
+
+    .audio-hint {
+      margin-top: 8px;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    /* Key Buttons Grid */
+    .key-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+      max-height: 290px;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+
+    .key-grid button:last-child:nth-child(odd) {
+      grid-column: span 2;
+    }
+
+    .btn-choice {
+      background: #334155;
+      border: 2px solid transparent;
+      color: var(--text-main);
+      font-size: 0.95rem;
+      font-weight: 600;
+      padding: 12px 8px;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: background 0.15s ease, transform 0.1s ease, border-color 0.15s ease;
+    }
+
+    .btn-choice:active:not(:disabled) {
+      transform: scale(0.96);
+    }
+
+    .btn-choice.selected {
+      background: #4338ca;
+      border-color: var(--selected);
+      color: #ffffff;
+    }
+
+    .btn-choice.correct {
+      background: var(--correct) !important;
+      border-color: var(--correct) !important;
+      color: #052e16 !important;
+    }
+
+    .btn-choice.incorrect {
+      background: var(--incorrect) !important;
+      border-color: var(--incorrect) !important;
+      color: #450a0a !important;
+    }
+
+    /* Feedback message banner */
+    .feedback-banner {
+      min-height: 22px;
+      text-align: center;
+      font-size: 0.95rem;
+      font-weight: 600;
+    }
+
+    .feedback-banner.correct { color: var(--correct); }
+    .feedback-banner.incorrect { color: var(--incorrect); }
+
+    /* Action Buttons */
+    .btn-primary {
+      background: var(--accent);
+      color: #0f172a;
+      border: none;
+      border-radius: 12px;
+      padding: 14px;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      width: 100%;
+      box-shadow: 0 4px 12px rgba(56, 189, 248, 0.25);
+      transition: transform 0.15s ease, background 0.15s ease, opacity 0.15s ease;
+    }
+
+    .btn-primary:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+
+    .btn-primary:active:not(:disabled) {
+      transform: scale(0.98);
+      background: var(--accent-active);
+    }
+
+    .btn-secondary {
+      background: transparent;
+      border: 1px solid #475569;
+      color: var(--text-muted);
+      border-radius: 12px;
+      padding: 10px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      width: 100%;
+    }
+
+    /* Results */
+    .score-summary {
+      text-align: center;
+      padding: 16px 0;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .score-big {
+      font-size: 3rem;
+      font-weight: 800;
+      color: var(--accent);
+    }
+
+    .score-rating {
+      font-size: 1.1rem;
+      color: var(--text-main);
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <header>
+      <h1>Let It Be</h1>
+      <p>Major Key Identification Ear Trainer</p>
+    </header>
+
+    <!-- 1. Start / Intro Screen -->
+    <div id="screen-start" class="screen active">
+      <div class="start-card">
+        <p>In this game you will be played a short recording of an arrangement of The Beatles' track 'Let It Be'. You will need to use your keyboard / piano to audition notes / major scales to find the key that the recording is in. On the next page you can select which Major Keys to include in the game.</p>
+        
+        <div class="callout-hint">
+          <p><strong>Hint!</strong> Playing the major scale of the key the recording is in should sound complimentary / pleasant. Ie if the recording is in C Major, playing the C Major scale over the top of the recording should sound nice. Playing other Major scales will sound less nice, and possibly quite unpleasant! Ie if the recording is in C Major, playing the A Major scale on your piano at the same time as playing the recording in the game could sound - subjectively - quite unpleasant!</p>
+        </div>
+      </div>
+      <button class="btn-primary" id="btn-to-key-select">Choose Keys &rarr;</button>
+    </div>
+
+    <!-- 2. Which Keys to Include Screen -->
+    <div id="screen-select-keys" class="screen">
+      <div class="selector-header">
+        <span class="selector-title">Select Keys to Include:</span>
+        <div class="selector-links">
+          <button class="btn-text" id="btn-select-all">All</button>
+          <button class="btn-text" id="btn-select-none">Clear</button>
+        </div>
+      </div>
+
+      <div class="keys-checkbox-grid" id="keys-selector-grid"></div>
+      <div class="selection-warning" id="selection-warning"></div>
+
+      <button class="btn-primary" id="btn-start-game">Start Game</button>
+      <button class="btn-secondary" id="btn-back-to-intro">&larr; Back</button>
+    </div>
+
+    <!-- 3. Active Game Screen -->
+    <div id="screen-game" class="screen">
+      <div class="hud">
+        <div>
+          <div class="hud-label">Round</div>
+          <div class="hud-val" id="hud-round">1 / 10</div>
+        </div>
+        <div>
+          <div class="hud-label" style="text-align: right;">Score</div>
+          <div class="hud-val" style="text-align: right;" id="hud-score">0</div>
+        </div>
+      </div>
+
+      <div class="audio-control-area">
+        <button class="btn-audio-toggle" id="btn-audio-toggle" aria-label="Play / Pause Audio">
+          <!-- Play Icon -->
+          <svg id="icon-play" viewBox="0 0 24 24">
+            <path d="M8 5v14l11-7z"/>
+          </svg>
+          <!-- Pause Icon -->
+          <svg id="icon-pause" viewBox="0 0 24 24" style="display: none;">
+            <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
+          </svg>
+        </button>
+        <span class="audio-hint" id="audio-hint-text">Tap to play excerpt</span>
+      </div>
+
+      <div class="feedback-banner" id="feedback-banner"></div>
+
+      <div class="key-grid" id="key-buttons-container"></div>
+
+      <button class="btn-primary" id="btn-action" disabled>Submit Answer</button>
+      <button class="btn-secondary" id="btn-finish-early">End Game Early</button>
+    </div>
+
+    <!-- 4. Game Over Screen -->
+    <div id="screen-end" class="screen">
+      <div class="score-summary">
+        <div class="hud-label">Final Score</div>
+        <div class="score-big" id="final-score">0%</div>
+        <div class="score-rating" id="final-rating">Good Effort!</div>
+        <p id="final-subtext" style="color: var(--text-muted); font-size: 0.9rem;"></p>
+      </div>
+      <button class="btn-primary" id="btn-restart">Play Again</button>
+    </div>
+  </div>
+
+  <script>
+    const ALL_KEYS = [
+      { id: "c",      name: "C Major",        file: "cmajor.mp3" },
+      { id: "csharp", name: "C#/Db Major",    file: "csharpmajor.mp3" },
+      { id: "d",      name: "D Major",        file: "dmajor.mp3" },
+      { id: "dsharp", name: "D#/Eb Major",    file: "dsharpmajor.mp3" },
+      { id: "e",      name: "E Major",        file: "emajor.mp3" },
+      { id: "f",      name: "F Major",        file: "fmajor.mp3" },
+      { id: "fsharp", name: "F#/Gb Major",    file: "fsharpmajor.mp3" },
+      { id: "g",      name: "G Major",        file: "gmajor.mp3" },
+      { id: "gsharp", name: "G#/Ab Major",    file: "gsharpmajor.mp3" },
+      { id: "a",      name: "A Major",        file: "amajor.mp3" },
+      { id: "asharp", name: "A#/Bb Major",    file: "asharpmajor.mp3" },
+      { id: "b",      name: "B Major",        file: "bmajor.mp3" }
+    ];
+
+    const TOTAL_ROUNDS = 10;
+    let selectedKeyIds = new Set(ALL_KEYS.map(k => k.id));
+    let activeKeys = [];
+    let currentRound = 0;
+    let score = 0;
+    let currentTargetKey = null;
+    let selectedKeyId = null;
+    let isRoundSubmitted = false;
+
+    // Track audio
+    let currentAudio = null;
+    const audioPool = {};
+    ALL_KEYS.forEach(key => {
+      const audio = new Audio(key.file);
+      audio.preload = "auto";
+      audio.addEventListener('ended', () => {
+        setAudioPlayingState(false);
+      });
+      audioPool[key.id] = audio;
+    });
+
+    // Feedback audio instances
+    const correctAudio = new Audio('correct.mp3');
+    correctAudio.preload = "auto";
+    const incorrectAudio = new Audio('incorrect.mp3');
+    incorrectAudio.preload = "auto";
+
+    // DOM Elements
+    const screenStart = document.getElementById('screen-start');
+    const screenSelectKeys = document.getElementById('screen-select-keys');
+    const screenGame = document.getElementById('screen-game');
+    const screenEnd = document.getElementById('screen-end');
+
+    const btnToKeySelect = document.getElementById('btn-to-key-select');
+    const btnBackToIntro = document.getElementById('btn-back-to-intro');
+    const btnStartGame = document.getElementById('btn-start-game');
+    const btnRestart = document.getElementById('btn-restart');
+    const btnSelectAll = document.getElementById('btn-select-all');
+    const btnSelectNone = document.getElementById('btn-select-none');
+    const keysSelectorGrid = document.getElementById('keys-selector-grid');
+    const selectionWarning = document.getElementById('selection-warning');
+
+    const btnAudioToggle = document.getElementById('btn-audio-toggle');
+    const btnAction = document.getElementById('btn-action');
+    const btnFinishEarly = document.getElementById('btn-finish-early');
+    const iconPlay = document.getElementById('icon-play');
+    const iconPause = document.getElementById('icon-pause');
+    const audioHintText = document.getElementById('audio-hint-text');
+
+    const hudRound = document.getElementById('hud-round');
+    const hudScore = document.getElementById('hud-score');
+    const feedbackBanner = document.getElementById('feedback-banner');
+    const keyButtonsContainer = document.getElementById('key-buttons-container');
+
+    const finalScore = document.getElementById('final-score');
+    const finalRating = document.getElementById('final-rating');
+    const finalSubtext = document.getElementById('final-subtext');
+
+    function switchScreen(targetScreen) {
+      [screenStart, screenSelectKeys, screenGame, screenEnd].forEach(s => s.classList.remove('active'));
+      targetScreen.classList.add('active');
+    }
+
+    // Key selection builder
+    function initSelectionGrid() {
+      keysSelectorGrid.innerHTML = '';
+      ALL_KEYS.forEach(key => {
+        const toggleBtn = document.createElement('div');
+        toggleBtn.className = `key-toggle ${selectedKeyIds.has(key.id) ? 'selected' : ''}`;
+        toggleBtn.textContent = key.name;
+        toggleBtn.addEventListener('click', () => {
+          if (selectedKeyIds.has(key.id)) {
+            selectedKeyIds.delete(key.id);
+            toggleBtn.classList.remove('selected');
+          } else {
+            selectedKeyIds.add(key.id);
+            toggleBtn.classList.add('selected');
+          }
+          validateKeySelection();
+        });
+        keysSelectorGrid.appendChild(toggleBtn);
+      });
+      validateKeySelection();
+    }
+
+    function validateKeySelection() {
+      if (selectedKeyIds.size < 2) {
+        selectionWarning.textContent = "Please select at least 2 keys to play.";
+        btnStartGame.disabled = true;
+        return false;
+      }
+      selectionWarning.textContent = "";
+      btnStartGame.disabled = false;
+      return true;
+    }
+
+    btnSelectAll.addEventListener('click', () => {
+      selectedKeyIds = new Set(ALL_KEYS.map(k => k.id));
+      document.querySelectorAll('.key-toggle').forEach(el => el.classList.add('selected'));
+      validateKeySelection();
+    });
+
+    btnSelectNone.addEventListener('click', () => {
+      selectedKeyIds.clear();
+      document.querySelectorAll('.key-toggle').forEach(el => el.classList.remove('selected'));
+      validateKeySelection();
+    });
+
+    // Build gameplay buttons from the selected keys pool
+    function initGameKeyButtons() {
+      keyButtonsContainer.innerHTML = '';
+      activeKeys.forEach(key => {
+        const btn = document.createElement('button');
+        btn.className = 'btn-choice';
+        btn.textContent = key.name;
+        btn.dataset.keyId = key.id;
+        btn.addEventListener('click', () => handleOptionSelect(key.id));
+        keyButtonsContainer.appendChild(btn);
+      });
+    }
+
+    // Audio & playback helpers
+    function setAudioPlayingState(isPlaying) {
+      if (isPlaying) {
+        iconPlay.style.display = 'none';
+        iconPause.style.display = 'block';
+        audioHintText.textContent = 'Tap to pause';
+      } else {
+        iconPlay.style.display = 'block';
+        iconPause.style.display = 'none';
+        audioHintText.textContent = 'Tap to play excerpt';
+      }
+    }
+
+    function stopAllAudio() {
+      if (currentAudio) {
+        currentAudio.pause();
+        currentAudio.currentTime = 0;
+      }
+      correctAudio.pause();
+      correctAudio.currentTime = 0;
+      incorrectAudio.pause();
+      incorrectAudio.currentTime = 0;
+      setAudioPlayingState(false);
+    }
+
+    function toggleAudioPlayback() {
+      // User tapped play; stop pulse animation
+      btnAudioToggle.classList.remove('pulse');
+
+      if (!currentAudio) return;
+
+      if (currentAudio.paused) {
+        // Stop SFX if still sounding
+        correctAudio.pause();
+        correctAudio.currentTime = 0;
+        incorrectAudio.pause();
+        incorrectAudio.currentTime = 0;
+
+        currentAudio.play().then(() => {
+          setAudioPlayingState(true);
+        }).catch(err => {
+          console.warn("Playback error:", err);
+        });
+      } else {
+        currentAudio.pause();
+        setAudioPlayingState(false);
+      }
+    }
+
+    function setupNewRound() {
+      if (currentRound >= TOTAL_ROUNDS) {
+        finishGame();
+        return;
+      }
+
+      currentRound++;
+      isRoundSubmitted = false;
+      selectedKeyId = null;
+
+      stopAllAudio();
+
+      // Trigger pulse animation to cue the player
+      btnAudioToggle.classList.add('pulse');
+
+      feedbackBanner.textContent = '';
+      feedbackBanner.className = 'feedback-banner';
+
+      hudRound.textContent = `${currentRound} / ${TOTAL_ROUNDS}`;
+      hudScore.textContent = score;
+
+      btnAction.textContent = 'Submit Answer';
+      btnAction.disabled = true;
+
+      const buttons = keyButtonsContainer.querySelectorAll('.btn-choice');
+      buttons.forEach(btn => {
+        btn.className = 'btn-choice';
+        btn.disabled = false;
+      });
+
+      // Select random key from chosen active pool
+      const randomIndex = Math.floor(Math.random() * activeKeys.length);
+      currentTargetKey = activeKeys[randomIndex];
+      currentAudio = audioPool[currentTargetKey.id];
+      currentAudio.currentTime = 0;
+    }
+
+    function handleOptionSelect(keyId) {
+      if (isRoundSubmitted) return;
+
+      selectedKeyId = keyId;
+      const buttons = keyButtonsContainer.querySelectorAll('.btn-choice');
+      buttons.forEach(btn => {
+        btn.classList.toggle('selected', btn.dataset.keyId === keyId);
+      });
+
+      btnAction.disabled = false;
+    }
+
+    function handleSubmitAnswer() {
+      if (!selectedKeyId || isRoundSubmitted) return;
+
+      // Stop excerpt audio immediately on submission
+      stopAllAudio();
+      btnAudioToggle.classList.remove('pulse');
+
+      isRoundSubmitted = true;
+      const buttons = keyButtonsContainer.querySelectorAll('.btn-choice');
+      buttons.forEach(b => b.disabled = true);
+
+      const isCorrect = selectedKeyId === currentTargetKey.id;
+      const selectedBtn = Array.from(buttons).find(b => b.dataset.keyId === selectedKeyId);
+      const targetBtn = Array.from(buttons).find(b => b.dataset.keyId === currentTargetKey.id);
+
+      if (isCorrect) {
+        score++;
+        hudScore.textContent = score;
+        if (selectedBtn) selectedBtn.className = 'btn-choice correct';
+        feedbackBanner.textContent = 'Correct!';
+        feedbackBanner.className = 'feedback-banner correct';
+        correctAudio.play().catch(e => console.warn(e));
+      } else {
+        if (selectedBtn) selectedBtn.className = 'btn-choice incorrect';
+        if (targetBtn) targetBtn.className = 'btn-choice correct';
+        feedbackBanner.textContent = `Incorrect (Key was ${currentTargetKey.name})`;
+        feedbackBanner.className = 'feedback-banner incorrect';
+        incorrectAudio.play().catch(e => console.warn(e));
+      }
+
+      if (currentRound < TOTAL_ROUNDS) {
+        btnAction.textContent = 'Next Question \u2192';
+      } else {
+        btnAction.textContent = 'View Results \u2192';
+      }
+      btnAction.disabled = false;
+    }
+
+    function handleActionClick() {
+      if (!isRoundSubmitted) {
+        handleSubmitAnswer();
+      } else {
+        if (currentRound >= TOTAL_ROUNDS) {
+          finishGame();
+        } else {
+          setupNewRound();
+        }
+      }
+    }
+
+    function startGame() {
+      if (!validateKeySelection()) return;
+
+      activeKeys = ALL_KEYS.filter(k => selectedKeyIds.has(k.id));
+      currentRound = 0;
+      score = 0;
+      initGameKeyButtons();
+      switchScreen(screenGame);
+      setupNewRound();
+    }
+
+    function finishGame() {
+      stopAllAudio();
+      btnAudioToggle.classList.remove('pulse');
+
+      const percentage = currentRound > 0 ? Math.round((score / currentRound) * 100) : 0;
+      finalScore.textContent = `${percentage}%`;
+      finalSubtext.textContent = `You correctly identified ${score} out of ${currentRound} excerpts.`;
+
+      if (percentage === 100) {
+        finalRating.textContent = 'Perfect Pitch Precision!';
+      } else if (percentage >= 70) {
+        finalRating.textContent = 'Excellent Relative Pitch!';
+      } else if (percentage >= 40) {
+        finalRating.textContent = 'Solid Effort \u2014 Keep Listening!';
+      } else {
+        finalRating.textContent = 'Keep Practicing!';
+      }
+
+      switchScreen(screenEnd);
+    }
+
+    // Navigation & Event Listeners
+    btnToKeySelect.addEventListener('click', () => {
+      initSelectionGrid();
+      switchScreen(screenSelectKeys);
+    });
+
+    btnBackToIntro.addEventListener('click', () => {
+      switchScreen(screenStart);
+    });
+
+    btnStartGame.addEventListener('click', startGame);
+
+    // Loop back to the Game Intro Screen as requested
+    btnRestart.addEventListener('click', () => {
+      switchScreen(screenStart);
+    });
+
+    btnFinishEarly.addEventListener('click', finishGame);
+    btnAudioToggle.addEventListener('click', toggleAudioPlayback);
+    btnAction.addEventListener('click', handleActionClick);
+  </script>
+</body>
+</html>
